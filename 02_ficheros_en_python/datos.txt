@@ -1,0 +1,12 @@
+datos escritos en la linea 1 
+datos escritos en la linea 2 
+datos escritos en la linea 3 
+datos escritos en la linea 4 
+datos escritos en la linea 5 
+datos escritos en la linea 6 
+datos escritos en la linea 7 
+datos escritos en la linea 8 
+datos escritos en la linea 9 
+datos escritos en la linea 10 
+datos escritos en la linea 11
+datos escritos en la linea 12
