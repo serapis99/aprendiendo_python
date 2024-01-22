@@ -42,9 +42,20 @@ CREATE TABLE IF NOT EXISTS imagenes(
             return False
         else:
             return True
+        
+    def buscar_formulario_imagen(self, id,nombre):
+        self.cursor.execute(f"SELECT * from imagenes i where i.numIdentificacion ='{id}' and i.nombreImagen ='{nombre}'")
+        if self.cursor.fetchone()==None:
+            return False
+        else:
+            return True
 
     def obtener_formularios(self):
         self.cursor.execute("SELECT f.numIdentificacion, f.nombres, f.apellidos, f.tipoIdentificacion, f.estadoCivil, f.fechaNacimiento, f.numBeneficiarios, f.fechaIngreso, SUM(CASE WHEN i.nombreImagen IS NOT NULL THEN 1 ELSE 0 END) as cantidad_imagenes  FROM formularios as f left join imagenes as i on f.numIdentificacion = i.numIdentificacion group by f.numIdentificacion")
+        return self.cursor.fetchall()
+    
+    def obtener_imagenes(self,id):
+        self.cursor.execute(f"select nombreImagen, fecha from imagenes i where i.numIdentificacion={id}")
         return self.cursor.fetchall()
     
     def nuevo_formulario(self,numIdentificacion,nombre,apellido,tipoIdentificacion,estadoCivil,fechaNacimiento,numBeneficiarios,fechaIngreso):
@@ -53,6 +64,13 @@ CREATE TABLE IF NOT EXISTS imagenes(
         fechaNacimiento,numBeneficiarios,fechaIngreso) 
         VALUES('{numIdentificacion}','{nombre}', '{apellido}',
         '{tipoIdentificacion}', '{estadoCivil}','{fechaNacimiento}', '{numBeneficiarios}','{fechaIngreso}')"""
+        self.cursor.execute(sql)
+        self.cursor.connection.commit()
+    
+    def nuevo_formulario_imagen(self,numIdentificacion,nombre,fecha):
+        sql=f"""INSERT INTO imagenes (numIdentificacion,
+        nombreImagen,fecha) 
+        VALUES('{numIdentificacion}','{nombre}', '{fecha}')"""
         self.cursor.execute(sql)
         self.cursor.connection.commit()
     
@@ -65,8 +83,30 @@ CREATE TABLE IF NOT EXISTS imagenes(
         self.cursor.execute(sql)
         self.cursor.connection.commit()
 
+    def actualizar_formulario_imagen(self,numIdentificacion,nombre,fecha,nombreanterior):
+        sql=f"""UPDATE imagenes SET 
+        numIdentificacion='{numIdentificacion}', 
+        nombreImagen='{nombre}', 
+        fecha='{fecha}'
+        WHERE numIdentificacion='{numIdentificacion}' and
+        nombreImagen='{nombreanterior}'
+        """
+        print(sql)
+        self.cursor.execute(sql)
+        self.cursor.connection.commit()
+
     def eliminar_formulario(self,numIdentificacion):
-        sql=f"DELETE FROM formularios WHERE numIdentificacion={numIdentificacion}"
+        sql=f"DELETE FROM formularios WHERE numIdentificacion='{numIdentificacion}'"
+        self.cursor.execute(sql)
+
+        sql=f"delete from imagenes where numIdentificacion='{numIdentificacion}'"
+        self.cursor.execute(sql)
+        self.cursor.connection.commit()
+
+
+
+    def eliminar_imagen(self,numIdentificacion,nombre):
+        sql=f"DELETE FROM imagenes WHERE numIdentificacion='{numIdentificacion}' and nombreImagen='{nombre}'"
         self.cursor.execute(sql)
         self.cursor.connection.commit()
 if __name__=='__main__':

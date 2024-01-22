@@ -8,8 +8,14 @@ import re
 class Ventana(QMainWindow):
     def __init__(self):
         super().__init__()
+        # variables
+        self.esNuevo=False
+        self.esEditado=False
+        self.NombreAntiguoImagen=''
+        # variables de clase
+        self.patron_nombres = re.compile(r'^[a-zA-Z\s]+$')
+        self.patron_nombres_imagenes=re.compile(r'^[a-zA-Z\s0-9._]+$')
 
-        
         self.gestor_bd=Modelo()
         self.gestor_bd.crear_tablas()
         self.gestor_bd.cerrar_bd()
@@ -35,10 +41,10 @@ class Ventana(QMainWindow):
 
         #bloqueando los campos
         self.__bloquear_limpiar_campos()
+        self.__bloquear_campos_formulario2()
 
-        # variables de clase
-        self.patron_nombres = re.compile(r'^[a-zA-Z\s]+$')
-        self.esNuevo=False
+        
+        
 
         self.show()
 
@@ -183,8 +189,6 @@ class Ventana(QMainWindow):
 
          # Crear el modelo y la vista de la tabla
         self.modelo_tabla_imagenes = QStandardItemModel()
-        self.modelo_tabla_imagenes.setHorizontalHeaderLabels(["Nombre Imagen",
-                                                     "Fecha"])
         self.__tabla_imagenes()
 
         # creando los widget para el layout
@@ -197,9 +201,17 @@ class Ventana(QMainWindow):
         self.frame2_entry_fechaImagen.setDisplayFormat("yyyy-MM-dd")
         self.frame2_entry_fechaImagen.setCalendarPopup(True)
 
+        self.frame2_boton_nuevo=QPushButton("Nuevo")
         self.frame2_boton_guardar=QPushButton("Guardar")
         self.frame2_boton_editar=QPushButton("Editar")
         self.frame2_boton_eliminar=QPushButton("Eliminar")
+
+        ## eventos 
+
+        self.frame2_boton_nuevo.clicked.connect(self.__activar_limpiar_campos_imagenes)
+        self.frame2_boton_guardar.clicked.connect(self.__guardar_datos_imagenes)
+        self.frame2_boton_editar.clicked.connect(self.__editar_campos_imagenes)
+        self.frame2_boton_eliminar.clicked.connect(self.__eliminar_formulario_imagenes)
 
         # agregando los elementos al layout
 
@@ -209,33 +221,33 @@ class Ventana(QMainWindow):
         self.layout_frame2.addWidget(self.frame2_label_fechaImagen,1,0)
         self.layout_frame2.addWidget(self.frame2_entry_fechaImagen,1,1,1,2)
 
-        self.layout_frame2.addWidget(self.frame2_boton_guardar,2,0)
-        self.layout_frame2.addWidget(self.frame2_boton_editar,2,1)
-        self.layout_frame2.addWidget(self.frame2_boton_eliminar,2,2)
+        self.layout_frame2.addWidget(self.frame2_boton_nuevo,2,0)
+        self.layout_frame2.addWidget(self.frame2_boton_guardar,2,1)
+        self.layout_frame2.addWidget(self.frame2_boton_editar,2,2)
+        self.layout_frame2.addWidget(self.frame2_boton_eliminar,2,3)
 
 
         # Añadir frame2 al layout principal
         self.layout.addWidget(self.frame2, 0, 1)
 
-    def __tabla_imagenes(self):
-        # Datos de ejemplo para la tabla
-        data = [
-            ["imagen 1", "1990-12-05"],
-            ["imagen 2", "1990-12-12"],
-            ["imagen 3", "1990-12-18"],
-            ["imagen 4", "1990-12-25"]
-        ]
-
+    def __tabla_imagenes(self,id=0):
+        self.modelo_tabla_imagenes.clear()
+        self.modelo_tabla_imagenes.setHorizontalHeaderLabels(["Nombre Imagen", "Fecha"])
+        
+        self.gestor_bd=Modelo()
+        data=self.gestor_bd.obtener_imagenes(id)
+        self.gestor_bd.cerrar_bd()
+        
         # Llenar el modelo con los datos
         for row in data:
             items = [QStandardItem(str(item)) for item in row]
             self.modelo_tabla_imagenes.appendRow(items)
 
         # Crear la vista de la tabla y agregarla al layout de frame1
-        treeView = QTreeView()
-        treeView.setModel(self.modelo_tabla_imagenes)
-        treeView.setEditTriggers(QTreeView.NoEditTriggers)
-        self.layout_frame2.addWidget(treeView, 3, 0, 1, 3)
+        self.table_frame2_treeView = QTreeView()
+        self.table_frame2_treeView.setModel(self.modelo_tabla_imagenes)
+        self.table_frame2_treeView.setEditTriggers(QTreeView.NoEditTriggers)
+        self.layout_frame2.addWidget(self.table_frame2_treeView, 3, 0, 1, 4)
 
     def __editar_campos(self):
         currentIndex = self.table_frame1_treeView.currentIndex().row()
@@ -248,7 +260,8 @@ class Ventana(QMainWindow):
         else:
             # Obtener los datos de la fila seleccionada
             self.esNuevo=False
-
+            self.esEditado=True
+            self.__bloquear_campos_formulario2()
             datos_fila = [self.modelo_tabla.index(currentIndex, columna).data() 
                       for columna in range(self.modelo_tabla.columnCount())]
             
@@ -303,6 +316,8 @@ class Ventana(QMainWindow):
             self.frame1_entry_numBeneficiarios.setText(datos_fila[6])
             self.frame1_entry_fechaIngreso.setDate(QDate(int(fechaIngreso[0]),int(fechaIngreso[1]),int(fechaIngreso[2])))
 
+            self.__tabla_imagenes(datos_fila[0])
+
     def __guardar_datos(self):
         if (self.__validar_datos_frame1()):
             box = QMessageBox()
@@ -352,6 +367,7 @@ class Ventana(QMainWindow):
                         titulo="registro correcto"
                         box.information(self,titulo,texto, QMessageBox.Ok)
                         self.__datos_tabla()
+                        self.__tabla_imagenes()
                         self.__bloquear_limpiar_campos()
                     except:
                         self.gestor_bd.cerrar_bd()
@@ -407,12 +423,17 @@ class Ventana(QMainWindow):
                         titulo="registro correcto"
                         box.information(self,titulo,texto, QMessageBox.Ok)
                         self.__datos_tabla()
+                        self.__tabla_imagenes()
                         self.__bloquear_limpiar_campos()
+                        self.esEditado=False
+                        self.__bloquear_campos_formulario2()
                     except:
                         self.gestor_bd.cerrar_bd()
                         texto="Hubo un error y no se creo el registro"
                         titulo="Error en el registro"
                         box.critical(self,titulo,texto, QMessageBox.Ok)
+                    
+
         else:
             print("Uno de los campos Fallo la validacion")
 
@@ -431,7 +452,11 @@ class Ventana(QMainWindow):
             datos_fila = [self.modelo_tabla.index(currentIndex, columna).data() 
                       for columna in range(self.modelo_tabla.columnCount())]
             
+            self.esEditado=False
+            self.__bloquear_campos_formulario2()
+            
             self.gestor_bd=Modelo()
+
             try:
                 self.gestor_bd.eliminar_formulario(datos_fila[0])
                 texto="El formulario se elimino correctamente"
@@ -445,7 +470,6 @@ class Ventana(QMainWindow):
             
             self.gestor_bd.cerrar_bd()
             
-
     def __validar_si_ya_existe(self):
         self.gestor_bd=Modelo()
         existe_en_base=self.gestor_bd.buscar_formulario(self.frame1_entry_numIdentificacion.text())
@@ -459,10 +483,6 @@ class Ventana(QMainWindow):
             return True
         else:
             return False
-
-
-
-
 
     def __validar_datos_frame1(self):
 
@@ -570,7 +590,6 @@ class Ventana(QMainWindow):
 
         return True
     
-
     def __activar_limpiar_campos(self):
         self.frame1_entry_numIdentificacion.setText("")
         self.frame1_entry_nombre.setText("")
@@ -601,8 +620,9 @@ class Ventana(QMainWindow):
         self.frame1_entry_apellidos.setText("")
         self.frame1_entry_tipoIdentificacion.setCurrentIndex(0)
         self.frame1_entry_estadoCivil.setCurrentIndex(0)
-        self.frame1_entry_fechaNacimiento
+        self.frame1_entry_fechaNacimiento.setDate(QDate(1900, 1, 1))
         self.frame1_entry_numBeneficiarios.setText("")
+        self.frame1_entry_fechaIngreso.setDate(QDate(1900, 1, 1))
 
         self.frame1_entry_numIdentificacion.setEnabled(False)
         self.frame1_entry_nombre.setEnabled(False)
@@ -618,10 +638,207 @@ class Ventana(QMainWindow):
         self.frame1_boton_nuevo.setEnabled(True)
 
         self.esNuevo=False
+        self.esEditado=False
+        self.__bloquear_campos_formulario2()
 
+    def __bloquear_campos_formulario2(self):
+        
+        if self.esEditado:
+            self.frame2_entry_nombreImagen.setText("")
+            self.frame2_entry_fechaImagen.setDate(QDate(1900, 1, 1))
 
+            self.frame2_entry_nombreImagen.setEnabled(False)
+            self.frame2_entry_fechaImagen.setEnabled(False)
 
+            self.frame2_boton_nuevo.setEnabled(True)
+            self.frame2_boton_editar.setEnabled(True)
+            self.frame2_boton_guardar.setEnabled(False)
+            self.frame2_boton_eliminar.setEnabled(True)
+
+        else:
+            self.frame2_entry_nombreImagen.setText("")
+            self.frame2_entry_fechaImagen.setDate(QDate(1900, 1, 1))
+            
+            self.frame2_entry_nombreImagen.setEnabled(False)
+            self.frame2_entry_fechaImagen.setEnabled(False)
+
+            self.frame2_boton_nuevo.setEnabled(False)
+            self.frame2_boton_editar.setEnabled(False)
+            self.frame2_boton_guardar.setEnabled(False)
+            self.frame2_boton_eliminar.setEnabled(False)
+
+    def __activar_limpiar_campos_imagenes(self):
+        self.esNuevoImagen=True
+        self.frame2_entry_nombreImagen.setText("")
+        self.frame2_entry_fechaImagen.setDate(QDate(1900, 1, 1))
+        
+        
+        self.frame2_entry_nombreImagen.setEnabled(True)
+        self.frame2_entry_fechaImagen.setEnabled(True)
+
+        self.frame2_boton_nuevo.setEnabled(False)
+        self.frame2_boton_editar.setEnabled(True)
+        self.frame2_boton_guardar.setEnabled(True)
+        self.frame2_boton_eliminar.setEnabled(True)
+
+    def __guardar_datos_imagenes(self):
+        if (self.__validar_datos_frame2()):
+            box = QMessageBox()
+            if(self.esNuevoImagen):
+                existe=self.__validar_si_ya_existe_imagen()
+                if not existe:
+                    try:
+                        self.gestor_bd=Modelo()
+                        self.gestor_bd.nuevo_formulario_imagen(
+                            self.frame1_entry_numIdentificacion.text(),
+                            self.frame2_entry_nombreImagen.text(),
+                            self.frame2_entry_fechaImagen.date().toString('yyyy-MM-dd'),
+                        )
+                        self.gestor_bd.cerrar_bd()
+                        texto="Se creo la imagen correctamente"
+                        titulo="registro correcto"
+                        box.information(self,titulo,texto, QMessageBox.Ok)
+                        self.__datos_tabla()
+                        self.__tabla_imagenes(self.frame1_entry_numIdentificacion.text())
+                        self.esEditado=True
+                        self.__bloquear_campos_formulario2()
+                    except:
+                        self.gestor_bd.cerrar_bd()
+                        texto="Hubo un error y no se creo la imagen"
+                        titulo="Error en la imagen"
+                        box.critical(self,titulo,texto, QMessageBox.Ok)
+                else:
+                    self.gestor_bd.cerrar_bd()
+                    texto="El identificador de la imagen ya existe"
+                    titulo="Error en la imagen"
+                    box.critical(self,titulo,texto, QMessageBox.Ok)
+            else:
+
+                try:
+                    self.gestor_bd=Modelo()
+                    self.gestor_bd.actualizar_formulario_imagen(
+                            self.frame1_entry_numIdentificacion.text(),
+                            self.frame2_entry_nombreImagen.text(),
+                            self.frame2_entry_fechaImagen.date().toString('yyyy-MM-dd'),
+                            self.NombreAntiguoImagen
+                    )
+                    self.gestor_bd.cerrar_bd()
+                    texto="Se actualizo la Imagen correctamente"
+                    titulo="registro correcto"
+                    box.information(self,titulo,texto, QMessageBox.Ok)
+                    self.__datos_tabla()
+                    self.__tabla_imagenes(self.frame1_entry_numIdentificacion.text())
+                    self.NombreAntiguoImagen=''
+                    self.esEditado=True
+                    self.__bloquear_campos_formulario2()
+                except:
+                    self.gestor_bd.cerrar_bd()
+                    texto="Hubo un error y no se creo el registro"
+                    titulo="Error en el registro"
+                    box.critical(self,titulo,texto, QMessageBox.Ok)
+                    
+        else:
+            print("Uno de los datos de formulario imagen fallo")
     
+    def __validar_datos_frame2(self):
+        nombre=self.frame2_entry_nombreImagen.text()
+        box = QMessageBox()
+        if nombre.strip()=='':
+            texto="El campo Nombre Imagen no puede estar vacio"
+            titulo="Campo Nombre Imagen"
+            box.critical(self,titulo,texto, QMessageBox.Ok)
+            return False
+        
+        elif len(nombre)>30:
+            texto="El campo Nombre de la imagen no puede tener mas de 30 caracteres"
+            titulo="Campo Nombre Imagen"
+            box.critical(self,titulo,texto, QMessageBox.Ok)
+            return False
+        
+        elif not self.patron_nombres_imagenes.match(nombre):
+            texto="El nombre de la imagen ingresado no es valido"
+            titulo="Campo Nombre Imagen"
+            box.critical(self,titulo,texto, QMessageBox.Ok)
+            return False
+        else:
+            self.frame2_entry_nombreImagen.setText(nombre.strip())
+            return True
+
+    def __validar_si_ya_existe_imagen(self):
+        self.gestor_bd=Modelo()
+        existe_en_base=self.gestor_bd.buscar_formulario_imagen(self.frame1_entry_numIdentificacion.text(),self.frame2_label_nombreImagen.text())
+        self.gestor_bd.cerrar_bd()
+        
+        box = QMessageBox()
+        if existe_en_base:
+            texto="Se Encontro que la imagen ya existe en la base de datos"
+            titulo="Error en el registro de la imagen"
+            box.critical(self,titulo,texto, QMessageBox.Ok)
+            return True
+        else:
+            return False
+        
+    def __editar_campos_imagenes(self):
+            currentIndex = self.table_frame2_treeView.currentIndex().row()
+
+            if currentIndex==-1:
+                box = QMessageBox()
+                texto="No se selecciono ningun registro a modificar"
+                titulo="Error en el registro"
+                box.critical(self,titulo,texto, QMessageBox.Ok)
+            else:
+                # Obtener los datos de la fila seleccionada
+                self.esNuevoImagen=False
+
+                datos_fila = [self.modelo_tabla_imagenes.index(currentIndex, columna).data() 
+                        for columna in range(self.modelo_tabla_imagenes.columnCount())]
+                
+                self.frame2_entry_nombreImagen.setEnabled(True)
+                self.frame2_entry_fechaImagen.setEnabled(True)
+
+                self.frame2_boton_nuevo.setEnabled(False)
+                self.frame2_boton_guardar.setEnabled(True)
+                self.frame2_boton_editar.setEnabled(True)
+                self.frame2_boton_eliminar.setEnabled(True)
+
+                fecha=datos_fila[1].split("-")
+
+                self.frame2_entry_nombreImagen.setText(datos_fila[0])
+                self.frame2_entry_fechaImagen.setDate(QDate(int(fecha[0]),int(fecha[1]),int(fecha[2])))
+
+                self.NombreAntiguoImagen=datos_fila[0]
+
+    def __eliminar_formulario_imagenes(self):
+        currentIndex = self.table_frame2_treeView.currentIndex().row()
+        box = QMessageBox()
+
+        if currentIndex==-1:
+            texto="No se selecciono ningun registro a modificar"
+            titulo="Error en el registro"
+            box.critical(self,titulo,texto, QMessageBox.Ok)
+        else:
+            # Obtener los datos de la fila seleccionada
+
+            datos_fila = [self.modelo_tabla_imagenes.index(currentIndex, columna).data() 
+                      for columna in range(self.modelo_tabla_imagenes.columnCount())]
+
+            id=self.frame1_entry_numIdentificacion.text()
+            self.gestor_bd=Modelo()
+
+            try:
+                self.gestor_bd.eliminar_imagen(id,datos_fila[0])
+                texto="La imagen se elimino correctamente"
+                titulo="Error en el registro"
+                box.information(self,titulo,texto, QMessageBox.Ok)
+                self.__datos_tabla()
+                self.__tabla_imagenes(self.frame1_entry_numIdentificacion.text())
+            except:
+                texto="Hubo un error al momento de eliminar la imagen"
+                titulo="Error en el registro"
+                box.critical(self,titulo,texto, QMessageBox.Ok)
+            
+            self.gestor_bd.cerrar_bd()
+
 if __name__ == "__main__":
     app = QApplication([])
     ventana = Ventana()
